@@ -15,6 +15,9 @@ from dash.dependencies import Input, Output
 from sklearn.ensemble import IsolationForest
 import wmi
 import pyttsx3
+import tkinter as tk
+from tkinter import messagebox
+
 
 # ===== Step 1: Accurate Data Collection =====
 cpu_load_history = deque(maxlen=30)
@@ -63,13 +66,45 @@ def speak_alert(message):
     engine.say(message)
     engine.runAndWait()
 
+
+
+def prompt_to_kill_high_memory_process(threshold=500):
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+
+    for proc in psutil.process_iter(['pid', 'memory_info', 'name']):
+        try:
+            mem_usage_mb = proc.info['memory_info'].rss / (1024 * 1024)
+            if mem_usage_mb > threshold:
+                # Create a new window instead of a simple messagebox
+                def kill_and_exit():
+                    os.kill(proc.info['pid'], 9)
+                    tk.messagebox.showinfo("Terminated", f"{proc.info['name']} has been killed.")
+                    root.destroy()
+
+                def ignore_and_exit():
+                    root.destroy()
+
+                root.deiconify()
+                root.title("High Memory Usage Alert")
+                tk.Label(root, text=f"{proc.info['name']} is using {mem_usage_mb:.2f} MB RAM").pack(padx=20, pady=10)
+                tk.Button(root, text="Terminate Process", command=kill_and_exit).pack(side=tk.LEFT, padx=10, pady=10)
+                tk.Button(root, text="Ignore", command=ignore_and_exit).pack(side=tk.RIGHT, padx=10, pady=10)
+                root.mainloop()
+                break  # Only prompt for the first found process over threshold
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+
+
 def detect_anomalies():
     model = joblib.load("anomaly_model.pkl")
     predictor = anomaly.HalfSpaceTrees()
+
     while True:
         metrics = get_system_metrics()
         df = pd.DataFrame([metrics])
         prediction = model.predict(df)
+
         if prediction[0] == -1:
             alert_message = f"Anomaly Detected! CPU: {metrics['cpu_usage']}%, RAM: {metrics['ram_usage']}%"
             predictor.learn_one(metrics)
@@ -79,10 +114,13 @@ def detect_anomalies():
             if metrics['cpu_usage'] > 90:
                 alert_message += "\nSuggestion: Close unused applications."
             if metrics['ram_usage'] > 80:
-                alert_message += "\nSuggestion: Check for memory leaks."
-                # speak_alert("Boss, Memory leakage detected!")
+                # Stop everything and show prompt
+                prompt_to_kill_high_memory_process(threshold=400)
+
             notification.notify(title="PC Doctor Alert!", message=alert_message, timeout=3)
+
         time.sleep(5)
+
 
 # ===== Step 3: Automated Fixes =====
 def kill_heavy_processes(threshold=90):
