@@ -1,0 +1,6 @@
+2025-04-20 23:24:33,805 - ERROR - Error in main: 'CacheCleaner' object has no attribute 'setup_logging'
+2025-04-20 23:24:42,526 - ERROR - Error in main: 'CacheCleaner' object has no attribute 'setup_logging'
+2025-04-20 23:26:43,098 - ERROR - Error in main: name 'sys' is not defined
+2025-04-20 23:26:45,335 - ERROR - Error updating metrics: main thread is not in main loop
+2025-04-20 23:29:19,368 - ERROR - Could not initialize system tray icon
+2025-04-20 23:32:14,495 - ERROR - Could not initialize system tray icon
